@@ -30,10 +30,14 @@ def find_root(startingFrom):
         if not head or head == '/':
             print("Couldn't find codebase root from %s." % startingFrom)
             sys.exit(1)
+        print('couldnt find it at %s' % head)
         head, tail = os.path.split(head)
         
 def only_header_files(fname):
     return bool(HEADER_EXTS_PAT.match(fname))
+
+def only_cxx_files(fname):
+    return bool(C_EXTS_PAT.match(fname))
 
 def final_folder(folder):
     folder = ioutil.norm_seps(folder)
@@ -42,22 +46,25 @@ def final_folder(folder):
     return folder.split('/')[-1]
 
 def skip_tests(folder):
-    return not bool(TEST_FOLDER_PAT.match(final_folder))
+    return not bool(TEST_FOLDER_PAT.match(final_folder(folder)))
 
 def skip_vcs(folder):
-    return not bool(VCS_FOLDER_PAT.match(final_folder))
+    '''
+    Return true for all folders except .hg, .git, .svn.
+    '''
+    folder = final_folder(folder)
+    return not bool(VCS_FOLDER_PAT.match(folder))
 
 def skip_tests_and_vcs(folder):
     folder = final_folder(folder)
-    return not bool(TEST_FOLDER_PAT.match(final_folder)) and not bool(VCS_FOLDER_PAT.match(final_folder))
+    return not bool(TEST_FOLDER_PAT.match(folder)) and not bool(VCS_FOLDER_PAT.match(folder))
 
 class Codebase:
     '''
     Make it easy to enumerate files in a particular codebase.
     '''
-    def __init__(self, path, recurse_filter=None, visit_filter=skip_vcs):
+    def __init__(self, path, recurse_filter=skip_vcs, visit_filter=only_cxx_files):
         path = find_root(path)
-        print('using %s as codebase root' % path)
         # Traverse codebase to enumerate files that need processing.
         self.root = ioutil.norm_folder(path)
         self.by_folder = {}
@@ -71,13 +78,13 @@ class Codebase:
                 if not item.endswith('/'):
                     yield item
     
-    def _discover(self, norecurse, novisit):
+    def _discover(self, recurse_filter, visit_filter):
         for root, dirs, files in os.walk(self.root):
             root = ioutil.norm_folder(root)
             relative_root = root[len(self.root):]
             items = []
             for d in dirs[:]:
-                if recurse_filter and not recurse_filter(relative_root + d):
+                if recurse_filter and (not recurse_filter(relative_root + d)):
                     dirs.remove(d)
                 else:
                     items.append(ioutil.norm_seps(relative_root + d, trailing=True))

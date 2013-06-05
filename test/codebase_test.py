@@ -24,10 +24,11 @@ class CodebaseTest(unittest.TestCase):
             
     def test_vcs_folders_ignored(self):
         cb = codebase.Codebase(SAMPLE_DIR)
-        self.assertFalse('include/.svn' in cb.by_folder)
-        self.assertTrue('include' in cb.by_folder)
+        print(cb.by_folder.keys())
+        self.assertFalse('include/.svn/' in cb.by_folder)
+        self.assertTrue('include/' in cb.by_folder)
         
-    def test_novisit(self):
+    def test_visit_filter(self):
         def ignore_some(fname):
             return not fname.startswith('M')
         cb = codebase.Codebase(SAMPLE_DIR, visit_filter=ignore_some)

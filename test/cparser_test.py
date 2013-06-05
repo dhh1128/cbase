@@ -27,7 +27,7 @@ def mock(txt_or_parser, idx):
     the specified offset.
     '''
     if type(txt_or_parser) == type(''):
-        parser = cparser.File()
+        parser = cparser.ParsedFile()
         parser.txt = txt_or_parser
     else:
         parser = txt_or_parser
@@ -107,7 +107,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(40, p._idx)
         
     def test_udt(self):
-        p = cparser.File()
+        p = cparser.ParsedFile()
         p.name = 'fake.c'
         txt = '\ntypedef struct foo\n  { \nint x;\nconst char * y;\n}\nhello'
         p.parse(txt)
@@ -119,7 +119,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(2, udt.at_line_num)
 
     def test_func(self):
-        p = cparser.File()
+        p = cparser.ParsedFile()
         p.name = 'fake.c'
         txt = '//a comment\nint doSomething(char * buf, int n);\nvoid doSomethingElse(double f) {\n  printf("hello");\n}'
         p.parse(txt)
@@ -132,7 +132,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(3, func.at_line_num)
         
     def test_easy_file1(self):
-        c = cparser.File(os.path.join(SAMPLE_DIR, 'include', 'MUURL.h'))
+        c = cparser.ParsedFile(os.path.join(SAMPLE_DIR, 'include', 'MUURL.h'))
         # First 2 block comments should be counted; last one after #endif ignored
         self.assertEqual(2, c.comment_count)
         self.assertEqual(73, c.comment_bytes)
@@ -140,7 +140,7 @@ class ParserTest(unittest.TestCase):
         self.assertFalse(bool(c.blocks))
 
     def test_easy_file2(self):
-        c = cparser.File(os.path.join(SAMPLE_DIR, 'include', 'PluginBase.h'))
+        c = cparser.ParsedFile(os.path.join(SAMPLE_DIR, 'include', 'PluginBase.h'))
         self.assertEqual(12, c.comment_count)
         self.assertEqual(360, c.comment_bytes)
         descrip = ';'.join([str(b) for b in c.blocks])
@@ -151,7 +151,7 @@ class ParserTest(unittest.TestCase):
         txt = '''int MVMShow() {
   MStringAppendF(Buffer,"%sVM[%s]  State: %s  JobID: %s  ActiveOS: %s\\n",'''
         #dump(txt)
-        p = cparser.File()
+        p = cparser.ParsedFile()
         p.parse(txt)
 
     def test_for_loop(self):
@@ -162,7 +162,7 @@ class ParserTest(unittest.TestCase):
       }   
 
 /* END MVMShow.c */'''
-        p = cparser.File()
+        p = cparser.ParsedFile()
         p.parse(txt)
         self.assertEqual(1, p.comment_count)
         self.assertEqual(19, p.comment_bytes)
@@ -170,7 +170,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual("('unnamed', 5)", descrip)
 
     def test_hard_file1(self):
-        c = cparser.File(os.path.join(SAMPLE_DIR, 'moab', 'MVMShow.c'))
+        c = cparser.ParsedFile(os.path.join(SAMPLE_DIR, 'moab', 'MVMShow.c'))
         self.assertEqual(25, c.comment_count)
         self.assertEqual(1122, c.comment_bytes)
         descrip = ';'.join([str((b.category,b.at_line_num)) for b in c.blocks])
@@ -205,7 +205,7 @@ class ParserTest(unittest.TestCase):
 
 void nothing() { }
 '''
-        p = cparser.File()
+        p = cparser.ParsedFile()
         p.parse(txt)
         descrip = ';'.join([str((b.category,b.at_line_num)) for b in p.blocks])
         self.assertEqual("('function', 1);('function', 21)", descrip)
