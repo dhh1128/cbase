@@ -20,17 +20,10 @@ def find_decl(name):
     for f in cb.files:
         parsed = ParsedFile(f, cb)
         if name in parsed[collection]:
-            
+            print 'found name'
 
 def test(args):
-    # Understand the code.
-    gist = analyze.Gist(cb)
-    for fname in cb.files:
-        abspath = cb.root + fname
-        parser = analyze.Parser(abspath, cb)
-        gist.include(parser)
-    # Describe what we learned.
-    gist.summarize()
+    find_decl('SetAccountAttrOnJob()')
 
 if __name__ == '__main__':
     args = sys.argv

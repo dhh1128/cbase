@@ -1,3 +1,25 @@
+'''
+Formal parsing of C and C++ might be complicated, but doable -- if it weren't for all the
+old and new language standards, and the non-standard compiler extensions, and the
+preprocessor.
+
+This class doesn't pretend to do perfect parsing, but it is relatively simply and robust.
+It's good at identifying code blocks (classes, structs, function declarations and 
+definitions). It handles comments (both C and C++) and string literals without getting
+confused, even with some pretty gnarly corner cases.
+
+It does not handle #ifdefs very well. It recognizes them, but it assumes that you will
+use them in a way that doesn't cross block boundaries -- either wholly inside a function,
+wholly outside a function, or wholly around a function, for example. If you put the end
+of one function and the beginning of another inside a single #ifdef block, it will
+become inaccurate. Certain unusual macro constracts may cause problems as well.
+
+Basic usage:
+
+Create an instance of ParsedFile(path, codebase), then access its properties to
+understand the structure in the file.
+'''
+
 import re
 import sys
 import weakref
@@ -15,20 +37,27 @@ _PUBPRIVPROT_PAT = re.compile(r'(public|private|protected)\s*:\s*')
 _RUN_OF_WHITESPACE_PAT = re.compile('\s+')
 _RESERVED_WORDS_PAT = re.compile(r'(for|do|while|if|else|switch|case|namespace)[^_a-zA-Z0-9]')
 
+'''Turn this on to spit out verbose messages as code is parsed.'''
 enable_debug = False
+
 def debug(msg):
     if enable_debug:
         sys.stdout.write(msg + '\n')
         sys.stdout.flush()
         
 def norm_param(param):
+    '''Convert a parameter to a canonical format.'''
     param = param.replace('*', ' * ').replace('&', ' & ')
     param = _RUN_OF_WHITESPACE_PAT.sub(' ', param).strip()
     param = param.replace('* *', '**')
     return param
 
 class BlockInfo:
-    '''Hold info about a block of code -- a function, class/struct, conditional, namespace, etc.'''
+    '''
+    Hold info about a block of code -- a function, class/struct, conditional, namespace, etc.
+    After parsing, the parser object contains various collections of these objects, or of
+    objects that derive from this class.
+    '''
     def __init__(self, parent, txt, line, begin, end, category='unnamed'):
         self.at_line_num = line
         self.txt = txt
@@ -104,8 +133,8 @@ class BlockInfo:
 
 class ParsedBlockInfo(BlockInfo):
     '''
-    A block of code that accepts delegation of the parse, instead of being
-    wholly created by the parent's parse.
+    A block of code that parses itself, instead of being wholly 
+    created by the parent's parse.
     '''
     def __init__(self, name, parent, txt, line, begin, category):
         BlockInfo.__init__(self, parent, txt, line, begin, len(txt), category)
@@ -452,12 +481,16 @@ class ParsedBlockInfo(BlockInfo):
             del self._last_block_comment        
     
 class BlockCommentInfo(BlockInfo):
-    '''Hold info about a block comment.'''
+    '''
+    Hold info about a block comment.
+    '''
     def __init__(self, parent, txt, line, begin, end):
         BlockInfo.__init__(self, parent, txt, line, begin, end, 'comment')
     
 class UdtInfo(ParsedBlockInfo):    
-    '''Hold info about a user-defined type -- a class or struct.'''
+    '''
+    Hold info about a user-defined type -- a class or struct.
+    '''
     def __init__(self, variant, name, parent, txt, header_begin, at_line_num, parse_line_num, parse_begin):
         ParsedBlockInfo.__init__(self, name, parent, txt, at_line_num, header_begin, 'udt')
         self.variant = variant

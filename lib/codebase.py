@@ -17,7 +17,7 @@ def is_root(folder):
             break
     if found:
         items = os.listdir(folder)
-        return 'src' in items and ('.git' in items or '.hg' in items or '.svn' in items)
+        return ('src' in items or 'include' in items) and ('.git' in items or '.hg' in items or '.svn' in items)
     return False
 
 def find_root(startingFrom):
@@ -55,7 +55,7 @@ class Codebase:
     '''
     Make it easy to enumerate files in a particular codebase.
     '''
-    def __init__(self, path, recurse_filter=None, visit_filter=None):
+    def __init__(self, path, recurse_filter=None, visit_filter=skip_vcs):
         path = find_root(path)
         print('using %s as codebase root' % path)
         # Traverse codebase to enumerate files that need processing.
