@@ -6,13 +6,7 @@ import sys
 VCS_FOLDER_PAT = re.compile('\.(hg|bzr|svn|git)$')
 TEST_FOLDER_PAT = re.compile('tests?$', re.IGNORECASE)
 C_EXTS_PAT = re.compile('.*\.(([hc](pp|xx)?)|cc)$', re.IGNORECASE)
-
-def is_vcs_or_test_folder(folder):
-    folder = ioutil.norm_seps(folder)
-    if folder.endswith('/'):
-        folder = folder[0:-1]
-    folder = folder.split('/')[-1]
-    return bool(VCS_FOLDER_PAT.match(folder)) or bool(TEST_FOLDER_PAT.match(folder))
+HEADER_EXTS_PAT = re.compile('.*\.(([h](pp|xx)?)|cc)$', re.IGNORECASE)
 
 _REQUIRED_FILES = ['Makefile', 'Makefile.am', 'configure', 'configure.ac']
 def is_root(folder):
@@ -37,24 +31,38 @@ def find_root(startingFrom):
             print("Couldn't find codebase root from %s." % startingFrom)
             sys.exit(1)
         head, tail = os.path.split(head)
+        
+def only_header_files(fname):
+    return bool(HEADER_EXTS_PAT.match(fname))
+
+def final_folder(folder):
+    folder = ioutil.norm_seps(folder)
+    if folder.endswith('/'):
+        folder = folder[0:-1]
+    return folder.split('/')[-1]
+
+def skip_tests(folder):
+    return not bool(TEST_FOLDER_PAT.match(final_folder))
+
+def skip_vcs(folder):
+    return not bool(VCS_FOLDER_PAT.match(final_folder))
+
+def skip_tests_and_vcs(folder):
+    folder = final_folder(folder)
+    return not bool(TEST_FOLDER_PAT.match(final_folder)) and not bool(VCS_FOLDER_PAT.match(final_folder))
 
 class Codebase:
     '''
     Make it easy to enumerate files in a particular codebase.
     '''
-    def __init__(self, path, norecurse=None, novisit=None):
+    def __init__(self, path, recurse_filter=None, visit_filter=None):
         path = find_root(path)
         print('using %s as codebase root' % path)
-        if norecurse:
-            norecurse = RecurseFilter(norecurse)
-        if novisit:
-            novisit_regex = re.compile(novisit, re.IGNORECASE)
-            novisit = lambda fname: bool(novisit_regex.match(fname))
         # Traverse codebase to enumerate files that need processing.
         self.root = ioutil.norm_folder(path)
         self.by_folder = {}
         self.by_ext = {}
-        self._discover(norecurse, novisit)
+        self._discover(recurse_filter, visit_filter)
     
     @property
     def files(self):
@@ -69,36 +77,18 @@ class Codebase:
             relative_root = root[len(self.root):]
             items = []
             for d in dirs[:]:
-                if norecurse and norecurse(relative_root + d):
+                if recurse_filter and not recurse_filter(relative_root + d):
                     dirs.remove(d)
                 else:
                     items.append(ioutil.norm_seps(relative_root + d, trailing=True))
             for f in files:
                 if C_EXTS_PAT.match(f):
-                    if not novisit or (not novisit(f)):
+                    if (not visit_filter) or visit_filter(f):
                         fname, ext = os.path.splitext(f)
                         if not ext in self.by_ext:
                             self.by_ext[ext] = []
                         self.by_ext[ext].append(relative_root + f)
                         items.append(relative_root + f)
             self.by_folder[relative_root] = items
-
-class RecurseFilter:
-    ''' Store cmdline regex to tweak how codebase is traversed.'''
-    def __init__(self, regex):
-        self.regex = None
-        if regex:
-            try:
-                self.regex = re.compile(regex)
-            except:
-                print('Unable to compile regex "%s".' % regex)
-                raise
-    def __call__(self, folder):
-        if codebase.is_vcs_or_test_folder(folder):
-            print('skipping %s' % folder)
-            return True #skip this one
-        if self.regex:
-            if bool(self.regex.match(folder)):
-                print('skipping %s' % folder)
-                return True
+            
 
