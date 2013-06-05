@@ -28,4 +28,4 @@ def test(args):
 if __name__ == '__main__':
     args = sys.argv
     func = globals()[args[1]]
-    func(cb, args)
+    func(args)
