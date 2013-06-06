@@ -86,9 +86,14 @@ class BlockInfo:
     @property
     def end_line_num(self):
         return self.at_line_num + self.full_line_count
+    
+    @property
+    def name(self):
+        return ''
             
     @property
     def parent(self):
+        # Try to follow weak ref
         if self._parent:
             return self._parent()
         return None
@@ -442,6 +447,21 @@ class ParsedBlockInfo(BlockInfo):
                                 self._idx += 1
                         elif c == ';':
                             self._idx = i + 1
+                            expr = self.txt[self._expr_begin:i]
+                            m = _FUNC_PAT.match(expr)
+                            if m:
+                                returned = norm_param(m.group(1))
+                                func_name = m.group(2)
+                                params = [norm_param(p) for p in m.group(3).split(',')]
+                                postfix = ''
+                                if m.group(4):
+                                    postfix = ' const'
+                                #returned, name, params, postfix, parent, txt, line, begin, end
+                                #print('parent = %s' % self)
+                                self.add_block(Prototype(
+                                    returned, func_name, params, 
+                                    postfix, self, self.txt, 
+                                    self._line, self._expr_begin, i))
                             debug('resetting _expr_begin at %s (line %s)' % (i, self._line))
                             self._expr_begin = -1
                         elif c == '{':
@@ -487,6 +507,20 @@ class BlockCommentInfo(BlockInfo):
     def __init__(self, parent, txt, line, begin, end):
         BlockInfo.__init__(self, parent, txt, line, begin, end, 'comment')
     
+class Prototype(BlockInfo):
+    '''
+    Hold a function prototype.
+    '''
+    def __init__(self, returned, name, params, postfix, parent, txt, line, begin, end):
+        BlockInfo.__init__(self, parent, txt, line, begin, end, 'prototype')
+        self.name = name
+        self.returned = returned
+        self.params = params
+        self.postfix = postfix
+    def __str__(self):
+        return '%s %s(%s)%s' % (self.returned, self.name, ', '.join(self.params), self.postfix)
+        
+
 class UdtInfo(ParsedBlockInfo):    
     '''
     Hold info about a user-defined type -- a class or struct.

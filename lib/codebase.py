@@ -70,6 +70,9 @@ class Codebase:
         self.by_folder = {}
         self.by_ext = {}
         self._discover(recurse_filter, visit_filter)
+        
+    def abspath(self, fname):
+        return self.root + fname
     
     @property
     def files(self):
